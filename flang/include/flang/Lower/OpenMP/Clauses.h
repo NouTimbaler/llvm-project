@@ -246,6 +246,7 @@ using Lastprivate = tomp::clause::LastprivateT<TypeTy, IdTy, ExprTy>;
 using LoopRange = tomp::clause::LoopRangeT<TypeTy, IdTy, ExprTy>;
 using Linear = tomp::clause::LinearT<TypeTy, IdTy, ExprTy>;
 using Link = tomp::clause::LinkT<TypeTy, IdTy, ExprTy>;
+using LoopRange = tomp::clause::LoopRangeT<TypeTy, IdTy, ExprTy>;
 using Map = tomp::clause::MapT<TypeTy, IdTy, ExprTy>;
 using Match = tomp::clause::MatchT<TypeTy, IdTy, ExprTy>;
 using Mergeable = tomp::clause::MergeableT<TypeTy, IdTy, ExprTy>;

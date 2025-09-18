@@ -797,6 +797,15 @@ struct LinkT {
   List v;
 };
 
+// V6: [6.4.7] Looprange clause
+template <typename T, typename I, typename E> struct LoopRangeT {
+  using First = E;
+  using Count = E;
+
+  using TupleTrait = std::true_type;
+  std::tuple<First, Count> t;
+};
+
 // V5.2: [5.8.3] `map` clause
 template <typename T, typename I, typename E> //
 struct MapT {

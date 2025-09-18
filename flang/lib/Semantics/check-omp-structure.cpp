@@ -3114,6 +3114,11 @@ void OmpStructureChecker::Enter(const parser::OmpClause::Looprange &x) {
 
 // Restrictions specific to each clause are implemented apart from the
 // generalized restrictions.
+void OmpStructureChecker::Enter(const parser::OmpClause::Looprange &x) {
+  context_.Say(GetContext().clauseSource,
+      "LOOPRANGE clause is not implemented yet"_err_en_US,
+      ContextDirectiveAsFortran());
+}
 
 void OmpStructureChecker::Enter(const parser::OmpClause::Destroy &x) {
   CheckAllowedClause(llvm::omp::Clause::OMPC_destroy);

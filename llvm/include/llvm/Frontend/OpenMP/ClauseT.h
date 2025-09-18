@@ -797,6 +797,15 @@ struct LinkT {
   List v;
 };
 
+// V6: [6.4.7] Looprange clause
+template <typename T, typename I, typename E> struct LoopRangeT {
+  using First = E;
+  using Count = E;
+
+  using TupleTrait = std::true_type;
+  std::tuple<First, Count> t;
+};
+
 // V5.2: [5.8.3] `map` clause
 template <typename T, typename I, typename E> //
 struct MapT {
@@ -1301,8 +1310,8 @@ using TupleClausesT =
                  DoacrossT<T, I, E>, DynGroupprivateT<T, I, E>, FromT<T, I, E>,
                  GrainsizeT<T, I, E>, IfT<T, I, E>, InitT<T, I, E>,
                  InReductionT<T, I, E>, LastprivateT<T, I, E>, LinearT<T, I, E>,
-                 MapT<T, I, E>, NumTasksT<T, I, E>, OrderT<T, I, E>,
-                 ReductionT<T, I, E>, ScheduleT<T, I, E>,
+                 LoopRangeT<T, I, E>, MapT<T, I, E>, NumTasksT<T, I, E>,
+                 OrderT<T, I, E>, ReductionT<T, I, E>, ScheduleT<T, I, E>,
                  TaskReductionT<T, I, E>, ToT<T, I, E>>;
 
 template <typename T, typename I, typename E>

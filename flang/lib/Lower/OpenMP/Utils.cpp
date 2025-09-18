@@ -607,13 +607,13 @@ static void processTileSizesFromOpenMPConstruct(
   if (!ompCons)
     return;
   if (auto *ompLoop{std::get_if<parser::OpenMPLoopConstruct>(&ompCons->u)}) {
-    const auto &nestedOptional =
-        std::get<std::optional<parser::NestedConstruct>>(ompLoop->t);
-    assert(nestedOptional.has_value() &&
+    const auto &nestedList =
+        std::get<std::list<parser::NestedConstruct>>(ompLoop->t);
+    assert(nestedList.size() == 1 &&
            "Expected a DoConstruct or OpenMPLoopConstruct");
     const auto *innerConstruct =
         std::get_if<common::Indirection<parser::OpenMPLoopConstruct>>(
-            &(nestedOptional.value()));
+            &(nestedList.front()));
     if (innerConstruct) {
       const auto &innerLoopDirective = innerConstruct->value();
       const parser::OmpDirectiveSpecification &innerBeginSpec =

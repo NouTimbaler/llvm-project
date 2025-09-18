@@ -2183,16 +2183,26 @@ void OmpAttributeVisitor::PrivatizeAssociatedLoopIndexAndCheckLoopLevel(
       clause ? (clause->Id() == llvm::omp::OMPC_collapse) : false};
   const parser::OpenMPLoopConstruct *innerMostLoop = &x;
   const parser::NestedConstruct *innerMostNest = nullptr;
+<<<<<<< HEAD
   auto *optLoopCons =
       &std::get<std::list<parser::NestedConstruct>>(innerMostLoop->t);
+=======
+  auto *optLoopCons = 
+    &std::get<std::list<parser::NestedConstruct>>(innerMostLoop->t);
+>>>>>>> 917e0b5a3efb74f9575de842772c6279a19c4de5
   while (optLoopCons->size() == 1) {
     innerMostNest = &(optLoopCons->front());
     if (const auto *innerLoop{
             std::get_if<common::Indirection<parser::OpenMPLoopConstruct>>(
                 innerMostNest)}) {
       innerMostLoop = &(innerLoop->value());
+<<<<<<< HEAD
       optLoopCons =
           &std::get<std::list<parser::NestedConstruct>>(innerMostLoop->t);
+=======
+      optLoopCons = 
+        &std::get<std::list<parser::NestedConstruct>>(innerMostLoop->t);
+>>>>>>> 917e0b5a3efb74f9575de842772c6279a19c4de5
     } else
       break;
   }

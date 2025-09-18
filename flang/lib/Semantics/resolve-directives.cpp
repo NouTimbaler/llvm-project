@@ -1928,6 +1928,7 @@ bool OmpAttributeVisitor::Pre(const parser::OpenMPLoopConstruct &x) {
   case llvm::omp::Directive::OMPD_teams_distribute_parallel_do_simd:
   case llvm::omp::Directive::OMPD_teams_distribute_simd:
   case llvm::omp::Directive::OMPD_teams_loop:
+  case llvm::omp::Directive::OMPD_fuse:
   case llvm::omp::Directive::OMPD_tile:
   case llvm::omp::Directive::OMPD_unroll:
     PushContext(beginName.source, beginName.v);
@@ -1947,10 +1948,10 @@ bool OmpAttributeVisitor::Pre(const parser::OpenMPLoopConstruct &x) {
   SetContextAssociatedLoopLevel(GetNumAffectedLoopsFromLoopConstruct(x));
 
   if (beginName.v == llvm::omp::Directive::OMPD_do) {
-    auto &optLoopCons = std::get<std::optional<parser::NestedConstruct>>(x.t);
-    if (optLoopCons.has_value()) {
+    auto &optLoopCons = std::get<std::list<parser::NestedConstruct>>(x.t);
+    for (auto &loopCons : optLoopCons) {
       if (const auto &doConstruct{
-              std::get_if<parser::DoConstruct>(&*optLoopCons)}) {
+              std::get_if<parser::DoConstruct>(&loopCons)}) {
         if (doConstruct->IsDoWhile()) {
           return true;
         }
@@ -2107,13 +2108,13 @@ void OmpAttributeVisitor::CollectNumAffectedLoopsFromInnerLoopContruct(
     llvm::SmallVector<std::int64_t> &levels,
     llvm::SmallVector<const parser::OmpClause *> &clauses) {
 
-  const auto &nestedOptional =
-      std::get<std::optional<parser::NestedConstruct>>(x.t);
-  assert(nestedOptional.has_value() &&
+  const auto &nestedList =
+      std::get<std::list<parser::NestedConstruct>>(x.t);
+  assert(nestedList.size() == 1 &&
       "Expected a DoConstruct or OpenMPLoopConstruct");
   const auto *innerConstruct =
       std::get_if<common::Indirection<parser::OpenMPLoopConstruct>>(
-          &(nestedOptional.value()));
+          &(nestedList.front()));
 
   if (innerConstruct) {
     CollectNumAffectedLoopsFromLoopConstruct(
@@ -2183,13 +2184,16 @@ void OmpAttributeVisitor::PrivatizeAssociatedLoopIndexAndCheckLoopLevel(
       clause ? (clause->Id() == llvm::omp::OMPC_collapse) : false};
   const parser::OpenMPLoopConstruct *innerMostLoop = &x;
   const parser::NestedConstruct *innerMostNest = nullptr;
-  while (auto &optLoopCons{
-      std::get<std::optional<parser::NestedConstruct>>(innerMostLoop->t)}) {
-    innerMostNest = &(optLoopCons.value());
+  auto *optLoopCons = 
+    &std::get<std::list<parser::NestedConstruct>>(innerMostLoop->t);
+  while (optLoopCons->size() == 1) {
+    innerMostNest = &(optLoopCons->front());
     if (const auto *innerLoop{
             std::get_if<common::Indirection<parser::OpenMPLoopConstruct>>(
                 innerMostNest)}) {
       innerMostLoop = &(innerLoop->value());
+      optLoopCons = 
+        &std::get<std::list<parser::NestedConstruct>>(innerMostLoop->t);
     } else
       break;
   }
@@ -2235,10 +2239,9 @@ void OmpAttributeVisitor::PrivatizeAssociatedLoopIndexAndCheckLoopLevel(
       const parser::OmpDirectiveSpecification &beginSpec{
           loop->value().BeginDir()};
       const parser::OmpDirectiveName &beginName{beginSpec.DirName()};
-      if (beginName.v != llvm::omp::Directive::OMPD_unroll &&
-          beginName.v != llvm::omp::Directive::OMPD_tile) {
+      if (!llvm::omp::loopTransformationSet.test(beginName.v)) {
         context_.Say(GetContext().directiveSource,
-            "Only UNROLL or TILE constructs are allowed between an OpenMP Loop Construct and a DO construct"_err_en_US,
+            "Only Loop Transformation Constructs are allowed between an OpenMP Loop Construct and a DO construct"_err_en_US,
             parser::ToUpperCaseLetters(llvm::omp::getOpenMPDirectiveName(
                 GetContext().directive, version)
                     .str()));

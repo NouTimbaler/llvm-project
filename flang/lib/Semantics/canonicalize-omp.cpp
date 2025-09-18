@@ -143,24 +143,36 @@ private:
           "If a loop construct has been fully unrolled, it cannot then be tiled"_err_en_US,
           parser::ToUpperCaseLetters(dirName.source.ToString()));
     };
+    auto missingEndFuse = [](auto &dir, auto &messages) {
+      messages.Say(dir.source,
+          "The %s construct requires the END FUSE directive"_err_en_US,
+          parser::ToUpperCaseLetters(dir.source.ToString()));
+    };
+
+    bool endFuseNeeded = beginName.v == llvm::omp::Directive::OMPD_fuse;
 
     nextIt = it;
-    while (++nextIt != block.end()) {
+    nextIt++;
+    while (nextIt != block.end()) {
       // Ignore compiler directives.
-      if (GetConstructIf<parser::CompilerDirective>(*nextIt))
+      if (GetConstructIf<parser::CompilerDirective>(*nextIt)) {
+        nextIt++;
         continue;
+      }
 
       if (auto *doCons{GetConstructIf<parser::DoConstruct>(*nextIt)}) {
         if (doCons->GetLoopControl()) {
           // move DoConstruct
-          std::get<std::optional<std::variant<parser::DoConstruct,
-              common::Indirection<parser::OpenMPLoopConstruct>>>>(x.t) =
-              std::move(*doCons);
+          std::get<std::list<parser::NestedConstruct>>(x.t).push_back(
+              std::move(*doCons));
           nextIt = block.erase(nextIt);
           // try to match OmpEndLoopDirective
           if (nextIt != block.end()) {
             if (auto *endDir{
                     GetConstructIf<parser::OmpEndLoopDirective>(*nextIt)}) {
+              auto &endDirName = endDir->DirName();
+              if(endDirName.v == llvm::omp::Directive::OMPD_fuse)
+                endFuseNeeded = false;
               std::get<std::optional<parser::OmpEndLoopDirective>>(x.t) =
                   std::move(*endDir);
               nextIt = block.erase(nextIt);
@@ -177,7 +189,32 @@ private:
         // OpenMP Loop Construct and the DO loop itself
         auto &nestedBeginDirective = ompLoopCons->BeginDir();
         auto &nestedBeginName = nestedBeginDirective.DirName();
-        if ((nestedBeginName.v == llvm::omp::Directive::OMPD_unroll ||
+        if (nestedBeginName.v == llvm::omp::Directive::OMPD_fuse) {
+          // iterate through the remaining block items to find the end directive
+          // for the fuse directive.
+          parser::Block::iterator endIt;
+          endIt = nextIt;
+          while (endIt != block.end()) {
+            if (auto *endDir{
+                    GetConstructIf<parser::OmpEndLoopDirective>(*endIt)}) {
+              auto &endDirName = endDir->DirName();
+              if (endDirName.v == beginName.v) {
+                if(endDirName.v == llvm::omp::Directive::OMPD_fuse)
+                  endFuseNeeded = false;
+                std::get<std::optional<parser::OmpEndLoopDirective>>(x.t) =
+                    std::move(*endDir);
+                endIt = block.erase(endIt);
+                continue;
+              }
+            }
+            ++endIt;
+          }
+          RewriteOpenMPLoopConstruct(*ompLoopCons, block, nextIt);
+          auto &ompLoop = std::get<std::list<parser::NestedConstruct>>(x.t);
+          ompLoop.push_back(parser::NestedConstruct{
+              common::Indirection{std::move(*ompLoopCons)}});
+          nextIt = block.erase(nextIt);
+        } else if ((nestedBeginName.v == llvm::omp::Directive::OMPD_unroll ||
                 nestedBeginName.v == llvm::omp::Directive::OMPD_tile) &&
             !(nestedBeginName.v == llvm::omp::Directive::OMPD_unroll &&
                 beginName.v == llvm::omp::Directive::OMPD_tile)) {
@@ -190,6 +227,8 @@ private:
                     GetConstructIf<parser::OmpEndLoopDirective>(*endIt)}) {
               auto &endDirName = endDir->DirName();
               if (endDirName.v == beginName.v) {
+                if(endDirName.v == llvm::omp::Directive::OMPD_fuse)
+                  endFuseNeeded = false;
                 std::get<std::optional<parser::OmpEndLoopDirective>>(x.t) =
                     std::move(*endDir);
                 endIt = block.erase(endIt);
@@ -199,10 +238,9 @@ private:
             ++endIt;
           }
           RewriteOpenMPLoopConstruct(*ompLoopCons, block, nextIt);
-          auto &ompLoop = std::get<std::optional<parser::NestedConstruct>>(x.t);
-          ompLoop =
-              std::optional<parser::NestedConstruct>{parser::NestedConstruct{
-                  common::Indirection{std::move(*ompLoopCons)}}};
+          auto &ompLoop = std::get<std::list<parser::NestedConstruct>>(x.t);
+          ompLoop.push_back(parser::NestedConstruct{
+              common::Indirection{std::move(*ompLoopCons)}});
           nextIt = block.erase(nextIt);
         } else if (nestedBeginName.v == llvm::omp::Directive::OMPD_unroll &&
             beginName.v == llvm::omp::Directive::OMPD_tile) {
@@ -231,11 +269,15 @@ private:
       } else {
         missingDoConstruct(beginName, messages_);
       }
+      if(endFuseNeeded) continue;
       // If we get here, we either found a loop, or issued an error message.
       return;
     }
     if (nextIt == block.end()) {
-      missingDoConstruct(beginName, messages_);
+      if (endFuseNeeded)
+        missingEndFuse(beginName, messages_);
+      else
+        missingDoConstruct(beginName, messages_);
     }
   }
 

@@ -3817,9 +3817,9 @@ static void genOMP(lower::AbstractConverter &converter, lower::SymMap &symTable,
 
   mlir::Location currentLocation = converter.genLocation(beginSpec.source);
 
-  auto &optLoopCons =
+  auto &loopConsList =
       std::get<std::list<parser::NestedConstruct>>(loopConstruct.t);
-  for (auto &loopCons : optLoopCons) {
+  for (auto &loopCons : loopConsList) {
     if (auto *ompNestedLoopCons{
             std::get_if<common::Indirection<parser::OpenMPLoopConstruct>>(
                 &loopCons)}) {

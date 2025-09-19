@@ -210,8 +210,8 @@ private:
             ++endIt;
           }
           RewriteOpenMPLoopConstruct(*ompLoopCons, block, nextIt);
-          auto &ompLoop = std::get<std::list<parser::NestedConstruct>>(x.t);
-          ompLoop.push_back(parser::NestedConstruct{
+          auto &loopConsList = std::get<std::list<parser::NestedConstruct>>(x.t);
+          loopConsList.push_back(parser::NestedConstruct{
               common::Indirection{std::move(*ompLoopCons)}});
           nextIt = block.erase(nextIt);
         } else if ((nestedBeginName.v == llvm::omp::Directive::OMPD_unroll ||
@@ -238,8 +238,8 @@ private:
             ++endIt;
           }
           RewriteOpenMPLoopConstruct(*ompLoopCons, block, nextIt);
-          auto &ompLoop = std::get<std::list<parser::NestedConstruct>>(x.t);
-          ompLoop.push_back(parser::NestedConstruct{
+          auto &loopConsList = std::get<std::list<parser::NestedConstruct>>(x.t);
+          loopConsList.push_back(parser::NestedConstruct{
               common::Indirection{std::move(*ompLoopCons)}});
           nextIt = block.erase(nextIt);
         } else if (nestedBeginName.v == llvm::omp::Directive::OMPD_unroll &&

@@ -1329,13 +1329,6 @@ def OMP_ThreadPrivate : Directive<[Spelling<"threadprivate">]> {
   let association = AS_None;
   let category = CA_Declarative;
 }
-def OMP_Fuse : Directive<[Spelling<"fuse">]> {
-  let allowedOnceClauses = [
-    VersionedClause<OMPC_LoopRange, 60>,
-  ];
-  let association = AS_Block;
-  let category = CA_Executable;
-}
 def OMP_Tile : Directive<[Spelling<"tile">]> {
   let allowedOnceClauses = [
     VersionedClause<OMPC_Sizes, 51>,

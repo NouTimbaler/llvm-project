@@ -41,7 +41,7 @@ subroutine loop_transformation_construct3
   !$omp end fuse
 end subroutine
 
-subroutine loop_transformation_construct5
+subroutine loop_transformation_construct4
   implicit none
   integer :: i = 5
   integer :: y
@@ -57,7 +57,7 @@ subroutine loop_transformation_construct5
   !$omp end fuse
 end subroutine
 
-subroutine loop_transformation_construct6
+subroutine loop_transformation_construct5
   implicit none
   integer :: i = 5
   integer :: y
@@ -73,9 +73,10 @@ subroutine loop_transformation_construct6
   do x = 1, i
     v(x) = x(x) * 2
   end do
+  !$omp end fuse
 end subroutine
 
-subroutine loop_transformation_construct8
+subroutine loop_transformation_construct6
   implicit none
   integer :: i = 5
   integer :: y

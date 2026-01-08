@@ -395,6 +395,8 @@ public:
   /// OpenMP loop transformation construct.
   StmtResult ActOnOpenMPLoopnest(Stmt *AStmt);
 
+  StmtResult ActOnOpenMPLoopSequence(Stmt *AStmt);
+
   /// End of OpenMP region.
   ///
   /// \param S Statement associated with the current OpenMP region.

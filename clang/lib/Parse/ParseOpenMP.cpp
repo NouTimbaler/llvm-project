@@ -2423,6 +2423,9 @@ StmtResult Parser::ParseOpenMPExecutableDirective(
           getLangOpts().OpenMPIRBuilder)
         AssociatedStmt =
             Actions.OpenMP().ActOnOpenMPLoopnest(AssociatedStmt.get());
+      if (DKind == OMPD_fuse && getLangOpts().OpenMPIRBuilder)
+        AssociatedStmt =
+            Actions.OpenMP().ActOnOpenMPLoopSequence(AssociatedStmt.get());
     }
     AssociatedStmt =
         Actions.OpenMP().ActOnOpenMPRegionEnd(AssociatedStmt, Clauses);

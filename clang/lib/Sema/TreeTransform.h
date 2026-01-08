@@ -1669,6 +1669,14 @@ public:
     return getSema().OpenMP().ActOnOpenMPCanonicalLoop(LoopStmt);
   }
 
+  /// Build a new OpenMP Canonical loop sequence.
+  ///
+  /// Ensures that every loop in @p SequenceStmt is wrapped by a
+  /// OMPCanonicalLoop.
+  StmtResult RebuildOMPCanonicalLoopSequence(Stmt *SequenceStmt) {
+    return getSema().OpenMP().ActOnOpenMPLoopSequence(SequenceStmt);
+  }
+
   /// Build a new OpenMP executable directive.
   ///
   /// By default, performs semantic analysis to build the new statement.
@@ -9511,9 +9519,12 @@ StmtResult TreeTransform<Derived>::TransformOMPExecutableDirective(
       else
         CS = D->getRawStmt();
       Body = getDerived().TransformStmt(CS);
+      Body.get()->dump();
       if (Body.isUsable() && isOpenMPLoopDirective(D->getDirectiveKind()) &&
           getSema().getLangOpts().OpenMPIRBuilder)
         Body = getDerived().RebuildOMPCanonicalLoop(Body.get());
+      if (D->getDirectiveKind() == OMPD_fuse && getSema().getLangOpts().OpenMPIRBuilder)
+        Body = getDerived().RebuildOMPCanonicalLoopSequence(Body.get());
     }
     AssociatedStmt =
         getDerived().getSema().OpenMP().ActOnOpenMPRegionEnd(Body, TClauses);

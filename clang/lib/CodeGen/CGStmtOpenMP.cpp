@@ -2983,6 +2983,43 @@ void CodeGenFunction::EmitOMPInterchangeDirective(
 }
 
 void CodeGenFunction::EmitOMPFuseDirective(const OMPFuseDirective &S) {
+  bool UseOMPIRBuilder = CGM.getLangOpts().OpenMPIRBuilder;
+
+  if (UseOMPIRBuilder) { // TODO: looprange
+    auto DL = SourceLocToDebugLoc(S.getBeginLoc());
+    const Stmt *Inner = S.getRawStmt();
+
+    SmallVector<llvm::CanonicalLoopInfo *> CLIs, toFuse;
+    for (const Stmt *Child : Inner->children()) {
+      OMPLoopNestStack.clear();
+      llvm::CanonicalLoopInfo *CLI = EmitOMPCollapsedCanonicalLoopNest(Child, 1);
+      CLIs.push_back(CLI);
+    }
+
+    if (auto *clause = S.getSingleClause<OMPLoopRangeClause>()) {
+      int first = 0;
+      int count = 0;
+      if (Expr *firstExpr = clause->getFirst()) {
+        first = firstExpr->EvaluateKnownConstInt(getContext()).getZExtValue();
+      }
+      if (Expr *countExpr = clause->getCount()) {
+        count = countExpr->EvaluateKnownConstInt(getContext()).getZExtValue();
+      }
+      for (int i = 0; i < count; ++i)
+        toFuse.push_back(CLIs[i + first - 1]);
+    } else {
+      for (auto *cli : CLIs)
+        toFuse.push_back(cli);
+    }
+
+    llvm::OpenMPIRBuilder &OMPBuilder = CGM.getOpenMPRuntime().getOMPBuilder();
+
+    llvm::CanonicalLoopInfo *fused = OMPBuilder.fuseLoops(DL, toFuse);
+    OMPLoopNestStack.clear();
+    OMPLoopNestStack.push_back(fused);
+    //for (auto *cli : CLIs) OMPLoopNestStack.push_back(cli);
+    return;
+  }
   // Emit the de-sugared statement
   OMPTransformDirectiveScopeRAII FuseScope(*this, &S);
   EmitStmt(S.getTransformedStmt());

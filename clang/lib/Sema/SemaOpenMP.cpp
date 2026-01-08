@@ -5954,6 +5954,15 @@ StmtResult SemaOpenMP::ActOnOpenMPLoopnest(Stmt *AStmt) {
   return LoopTransform;
 }
 
+StmtResult SemaOpenMP::ActOnOpenMPLoopSequence(Stmt *AStmt) {
+  SmallVector<Stmt *> CLIs;
+  for (Stmt *Child : AStmt->children()) {
+    CLIs.push_back(ActOnOpenMPLoopnest(Child).get());
+  }
+  return CompoundStmt::Create(getASTContext(), CLIs, FPOptionsOverride(),
+                              AStmt->getBeginLoc(), AStmt->getEndLoc());
+}
+
 static ExprResult buildUserDefinedMapperRef(Sema &SemaRef, Scope *S,
                                             CXXScopeSpec &MapperIdScopeSpec,
                                             const DeclarationNameInfo &MapperId,
@@ -14640,6 +14649,9 @@ bool SemaOpenMP::analyzeLoopSequence(Stmt *LoopSeqStmt,
   for (Stmt *Child : LoopSeqStmt->children()) {
     if (!Child)
       continue;
+    // if using IRBuilder
+    if (auto *CanonLoop = dyn_cast<OMPCanonicalLoop>(Child))
+      Child = CanonLoop->getLoopStmt();
     // Skip over non-loop-sequence statements.
     if (!LoopSequenceAnalysis::isLoopSequenceDerivation(Child)) {
       Child = Child->IgnoreContainers();
@@ -16012,6 +16024,10 @@ StmtResult SemaOpenMP::ActOnOpenMPFuseDirective(ArrayRef<OMPClause *> Clauses,
   assert(SeqAnalysis.LoopSeqSize == SeqAnalysis.Loops.size() &&
          "Inconsistent size of the loop sequence and the number of loops "
          "found in the sequence");
+
+  if (getLangOpts().OpenMPIRBuilder)
+    return OMPFuseDirective::Create(Context, StartLoc, EndLoc, Clauses,
+                                    /* NumLoops */ 1, AStmt, nullptr, nullptr);
 
   // Handle clauses, which can be any of the following: [looprange, apply]
   const auto *LRC =

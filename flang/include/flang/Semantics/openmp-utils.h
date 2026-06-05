@@ -322,6 +322,16 @@ WithReason<int64_t> GetHeightWithReason(
     const parser::OmpDirectiveSpecification &spec, unsigned version,
     SemanticsContext *semaCtx = nullptr);
 
+WithReason<
+    std::vector<std::pair<int64_t, const parser::OmpDirectiveSpecification *>>>
+getOrderedApplyDirectivesWithReason(
+    const parser::OmpDirectiveSpecification &spec, unsigned version,
+    SemanticsContext *semaCtx = nullptr);
+WithReason<
+    std::vector<std::pair<int64_t, const parser::OmpDirectiveSpecification *>>>
+CollectDirectivesToApplyWithReason(
+    const parser::OmpClause &clause, SemanticsContext *semaCtx = nullptr);
+
 /// Return the depth of the affected nest(s):
 ///   {affected-depth, must-be-perfect-nest}.
 std::pair<WithReason<int64_t>, bool> GetAffectedNestDepthWithReason(
@@ -423,6 +433,10 @@ private:
   /// Precalculate length and depth.
   void precalculate();
 
+  void updateLoopSequenceWithApplyClauses(
+      const parser::OmpDirectiveSpecification &spec);
+  bool hasOutermostApplyFullUnroll() const;
+
   WithReason<int64_t> calculateLength() const;
   WithReason<int64_t> getNestedLength() const;
   Depth calculateDepths() const;
@@ -453,6 +467,8 @@ private:
   ///   height_ = this->depth_ - child->depth_
   WithReason<int64_t> height_;
 
+  const parser::OmpDirectiveSpecification *outermostFullUnroll_{nullptr};
+
   // The core structure of the class:
   unsigned version_; // Needed for GetXyzWithReason
   bool allowAllLoops_;
@@ -460,6 +476,12 @@ private:
   std::vector<LoopSequence> children_;
   SemanticsContext *semaCtx_{nullptr};
 };
+
+/// Calculate the depth resulting of the application of spec
+LoopSequence::Depth calculateDepthsWith(LoopSequence::Depth depth,
+    WithReason<int64_t> &length, int64_t index,
+    const parser::OmpDirectiveSpecification &spec, unsigned version,
+    SemanticsContext *semaCtx = nullptr);
 
 // ---------------------------------------------------------------------------
 // Trait-matching helpers shared between metadirective lowering and

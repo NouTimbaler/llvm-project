@@ -869,46 +869,67 @@ void OmpStructureChecker::Enter(const parser::DoConstruct &x) {
   constructStack_.push_back(&x);
 }
 
-void OmpStructureChecker::Enter(const parser::OmpLoopModifier &x) {
+void OmpStructureChecker::Enter(const parser::OmpClause::Apply &x) {
   DirectiveContext &dirCtx = GetContext();
+  EnterDirectiveNest(ApplyNest);
   llvm::omp::Directive dir{dirCtx.directive};
   unsigned version{context_.langOptions().OpenMPVersion};
-  auto &m{std::get<llvm::omp::LoopModifier>(x.t)};
-  if (!llvm::omp::isAllowedLoopModifier(dir, m)) {
-    llvm::StringRef name = llvm::omp::getLoopModifierName(m);
-    context_.Say(x.source,
-        "%s modifier is not allowed on %s directive"_err_en_US,
-        parser::ToUpperCaseLetters(name),
-        parser::omp::GetUpperName(dir, version));
-  }
-  if (const auto &il{
-          std::get<std::optional<std::list<parser::ScalarIntConstantExpr>>>(
-              x.t)}) {
-    int64_t last = -1;
-    for (auto &i : il.value()) {
-      if (const auto v{GetIntValue(i)}) {
-        if (*v <= 0) {
-          context_.Say(x.source,
-              "The loop modifier indexes of the %s clause must be constant positive integer expressions"_err_en_US,
-              parser::ToUpperCaseLetters(
-                  getClauseName(llvm::omp::Clause::OMPC_apply).str()));
-        } else if (*v <= last) {
-          context_.Say(x.source,
-              "The loop modifier indexes of the %s clause must be in ascending order"_err_en_US,
-              parser::ToUpperCaseLetters(
-                  getClauseName(llvm::omp::Clause::OMPC_apply).str()));
-        } else {
-          last = *v;
+
+  OmpVerifyModifiers(
+      x.v, llvm::omp::Clause::OMPC_apply, dirCtx.clauseSource, context_);
+
+  auto &directiveList{
+      std::get<std::list<parser::OmpDirectiveSpecification>>(x.v.t)};
+  auto &modifiers{OmpGetModifiers(x.v)};
+  if (auto *loopModifier{
+          OmpGetUniqueModifier<parser::OmpLoopModifier>(modifiers)}) {
+    auto &m{std::get<llvm::omp::LoopModifier>(loopModifier->t)};
+    if (!llvm::omp::isAllowedLoopModifier(dir, m)) {
+      llvm::StringRef name = llvm::omp::getLoopModifierName(m);
+      context_.Say(loopModifier->source,
+          "%s modifier is not allowed on %s directive"_err_en_US,
+          parser::ToUpperCaseLetters(name),
+          parser::omp::GetUpperName(dir, version));
+    }
+    if (const auto &il{
+            std::get<std::optional<std::list<parser::ScalarIntConstantExpr>>>(
+                loopModifier->t)}) {
+      if (il.value().size() != directiveList.size()) {
+        context_.Say(loopModifier->source,
+            "The number of selected loops and the number of directives must match"_err_en_US);
+      }
+      int64_t last = -1;
+      for (auto &i : il.value()) {
+        if (const auto v{GetIntValue(i)}) {
+          if (*v <= 0) {
+            context_.Say(loopModifier->source,
+                "The loop modifier indexes of the %s clause must be constant positive integer expressions"_err_en_US,
+                parser::ToUpperCaseLetters(
+                    getClauseName(llvm::omp::Clause::OMPC_apply).str()));
+          } else if (*v <= last) {
+            context_.Say(loopModifier->source,
+                "The loop modifier indexes of the %s clause must be in ascending order"_err_en_US,
+                parser::ToUpperCaseLetters(
+                    getClauseName(llvm::omp::Clause::OMPC_apply).str()));
+          } else {
+            last = *v;
+          }
         }
       }
     }
+  } else {
+    switch (dir) {
+    case llvm::omp::Directive::OMPD_split:
+    case llvm::omp::Directive::OMPD_stripe:
+    case llvm::omp::Directive::OMPD_tile:
+      context_.Say(dirCtx.clauseSource,
+          "%s directive does not have a default loop modifier"_because_en_US,
+          parser::omp::GetUpperName(dir, version));
+      break;
+    default:
+      break;
+    }
   }
-}
-
-void OmpStructureChecker::Enter(const parser::OmpClause::Apply &x) {
-  EnterDirectiveNest(ApplyNest);
-  OmpVerifyModifiers(
-      x.v, llvm::omp::Clause::OMPC_apply, GetContext().clauseSource, context_);
 }
 
 void OmpStructureChecker::Leave(const parser::OmpClause::Apply &x) {

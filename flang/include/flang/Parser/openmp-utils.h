@@ -185,6 +185,19 @@ const T *GetFirstArgument(const OmpDirectiveSpecification &spec) {
 const OmpClause *FindClause(
     const OmpDirectiveSpecification &spec, llvm::omp::Clause clauseId);
 
+template <typename T>
+bool FindRepeatableClause(const OmpDirectiveSpecification &spec,
+    llvm::omp::Clause clauseId, T callbackFn) {
+  bool found = false;
+  for (auto &clause : spec.Clauses().v) {
+    if (clause.Id() == clauseId) {
+      callbackFn(&clause);
+      found = true;
+    }
+  }
+  return found;
+}
+
 const BlockConstruct *GetFortranBlockConstruct(
     const ExecutionPartConstruct &epc);
 const Block &GetInnermostExecPart(const Block &block);
